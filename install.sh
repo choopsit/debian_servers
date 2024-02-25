@@ -64,10 +64,10 @@ my_dist="$(awk -F= '/^ID=/{print $2}' /etc/os-release)"
     echo -e "${ERR} $(basename "$0") works only on Debian" && exit 1
 
 srv_list=("fog")
-#srv_list=("fog" "nextcloud" "salt")
+#srv_list=("fog" "nextcloud" "glpi" "salt")
 
 if [[ ${#srv_list[@]} -gt 1 ]]; then
-    # TODO: replace this by whiptail TUI
+    # TODO: replace this by whiptail TUI - radio menu
     i=0
     echo -e "${CYN}Available server deployments${DEF}:"
     for srv_name in "${srv_list[@]}"; do

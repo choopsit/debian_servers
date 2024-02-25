@@ -51,6 +51,62 @@ usage() {
     exit "${errcode}"
 }
 
+test_ip() {
+    local ipchk=$1
+    local IFS=.; local -a a=($ipchk)
+
+    if ! [[ ${ipchk} =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo -e "${ERR} Invalid ip/gateway address '${ipchk}'" && exit 1
+    fi
+
+    for quad in {0..3}; do
+        if [[ "${a[$quad]}" -gt 255 ]]; then
+            echo -e "${ERR} Invalid ip/gateway address '${ipchk}'" && exit 1
+        fi
+    done
+}
+
+fix_my_ip() {
+    local my_ip
+    local my_gw
+
+    # TODO: whiptail TUI - text boxes
+    read -p "ip address [default: ${ip}] ? " -r my_ip
+    [[ ${my_ip} ]] && echo || my_ip="${ip}"
+    test_ip "${my_ip}"
+
+    read -p "gateway [default:${gw}] ? " -r my_gw
+    [[ ${my_gw} ]] && echo || my_gw="${gw}"
+    test_ip "${my_gw}"
+
+    mod="static\n\taddress\t${my_ip}\n\tgateway\t${my_gw}"
+    sed "s/${iface} inet dhcp/${iface} inet ${mod}/" -i /etc/network/interfaces
+
+    if [[ ${my_ip} != ${ip} ]]; then
+        ip link set "${iface}" down
+        ip addr del "${ip}"/24 dev "${iface}"
+        ip addr add "${my_ip}"/24 dev "${iface}"
+        ip link set "${iface}" up
+    fi
+
+    [[ ${my_gw} != ${gw} ]] && ip route add default via "${my_gw}"
+}
+
+fix_ip() {
+    iface=$(ip route | awk '/default/ {print$5}')
+    gw=$(ip route | awk '/default/ {print$3}')
+    ip="$(ip a sh "${iface}" | awk '/inet /{sub("/.*",""); print $2}')"
+
+    # TODO: whiptail TUI - yes/no
+    if grep -q "${iface} *dhcp" /etc/network/interfaces; then
+        echo -e "${WRN} ip address is not fixed."
+        read -p "Fix ip address [Y/n] ? " -rn1 fixip
+        [[ ${fixip} ]] && echo || fixip=y
+        [[ ${fixip,,} =~ ^(y|n)$ ]] || { echo -e "${ERR} Invalid answer '${fixip}'" && exit 1; }
+        [[ ${fixip,,} == y ]] && fix_my_ip
+    fi
+}
+
 stable_sources() {
     cat <<eof > /etc/apt/sources.list
 # ${STABLE}
@@ -148,6 +204,7 @@ if [[ ${debian_version} != "${STABLE}" ]]; then
 fi
 
 # deploy base
+fix_ip
 clean_sources_menu
 install_packages
 system_config
