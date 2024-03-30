@@ -181,6 +181,17 @@ system_config() {
     vimplug_url="https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"
     curl -fLo /root/.vim/autoload/plug.vim --create-dirs "${vimplug_url}"
     vim +PlugInstall +qall
+
+    my_git_url="https://github.com/choopsit/my_debian.git"
+    my_debian=/tmp/my_debian
+    rm -rf "${my_debian}"
+    git clone "${my_giturl}" "${my_debian}"
+    "${my_debian}"/deployment/deploy_systools.sh
+}
+
+finish() {
+    echo -e "${NFO} base deployed.\nEnjoy ;)"
+    . ${HOME}/.profile
 }
 
 # check arguments
@@ -208,3 +219,4 @@ fix_ip
 clean_sources_menu
 install_packages
 system_config
+finish
